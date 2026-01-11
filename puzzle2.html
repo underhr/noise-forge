@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simon Says Puzzle</title>
+<style>
+  body {
+    margin:0;
+    font-family: sans-serif;
+    background: url('assets/images/stone_wall.png') no-repeat center center fixed;
+    background-size: cover;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  /* 🔹 FADE-IN WRAPPER */
+  #fade-wrapper {
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+
+  #fade-wrapper.fade-in {
+    opacity: 1;
+  }
+
+  #game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #central-rhombus {
+    width: 550px; /* original size you had */
+    height: 550px; /* original size you had */
+    background-image: url('simon_central.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    position: relative;
+    margin-bottom: 50px;
+  }
+
+  .highlight {
+    position: absolute;
+    width: 240px; /* original size you had */
+    height: 240px; /* original size you had */
+    background-size: contain;
+    background-repeat: no-repeat;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  /* Positions relative to central rhombus */
+  .highlight.mic {
+    top: 22%;
+    left: 52%;
+    transform: translate(-50%, -50%);
+  }
+
+  .highlight.guitar {
+    top: 45%;
+    right: 35%;
+    transform: translate(50%, -50%);
+  }
+
+  .highlight.drums {
+    bottom: 50%;
+    left: 58%;
+    transform: translate(-50%, 50%);
+  }
+
+  .highlight.keyboard {
+    top: 40%;
+    left: 34%;
+    transform: translate(-50%, -50%);
+  }
+
+  #button-container {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  .simon-button {
+    width: 80px;
+    height: 80px;
+    background-size: cover;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+
+  .simon-button:active {
+    transform: scale(0.9);
+  }
+
+  #message {
+    color: white;
+    margin-top: 20px;
+    font-size: 1.2rem;
+    text-align: center;
+  }
+
+  #stage-indicator {
+    color: white;
+    margin-top: 10px;
+    font-size: 1rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- 🔹 FADE WRAPPER START -->
+<div id="fade-wrapper">
+
+  <div id="game-container">
+    <div id="central-rhombus">
+      <div class="highlight mic" id="highlight-mic" style="background-image:url('mic.gif');"></div>
+      <div class="highlight guitar" id="highlight-guitar" style="background-image:url('guitar.gif');"></div>
+      <div class="highlight drums" id="highlight-drums" style="background-image:url('drums.gif');"></div>
+      <div class="highlight keyboard" id="highlight-keyboard" style="background-image:url('keyboard.gif');"></div>
+    </div>
+
+    <div id="button-container">
+      <button class="simon-button" data-sound="mic" style="background-image:url('assets/images/mic_button.png')"></button>
+      <button class="simon-button" data-sound="guitar" style="background-image:url('assets/images/guitar_button.png')"></button>
+      <button class="simon-button" data-sound="drums" style="background-image:url('assets/images/drums_button.png')"></button>
+      <button class="simon-button" data-sound="keyboard" style="background-image:url('assets/images/keyboard_button.png')"></button>
+    </div>
+
+    <div id="message">The chamber listens...</div>
+    <div id="stage-indicator">Stage 1 of 3</div>
+  </div>
+
+</div>
+<!-- 🔹 FADE WRAPPER END -->
+
+<script>
+/* =====================
+   CONFIGURATION
+===================== */
+const maxStages = 3;
+const baseSequenceLength = 4;
+let currentStage = 1;
+let sequenceLength = baseSequenceLength;
+
+/* =====================
+   STATE
+===================== */
+let pattern = [];
+let currentStep = 0;
+let acceptingInput = false;
+
+/* =====================
+   ELEMENTS
+===================== */
+const messageEl = document.getElementById("message");
+const stageEl = document.getElementById("stage-indicator");
+
+const highlights = {
+  mic: document.getElementById('highlight-mic'),
+  guitar: document.getElementById('highlight-guitar'),
+  drums: document.getElementById('highlight-drums'),
+  keyboard: document.getElementById('highlight-keyboard')
+};
+
+/* =====================
+   FADE-IN ON LOAD
+===================== */
+window.addEventListener("load", () => {
+  document.getElementById("fade-wrapper").classList.add("fade-in");
+
+  messageEl.textContent = "The chamber listens...";
+  updateStageText();
+
+  setTimeout(() => {
+    generatePattern();
+    showPattern();
+  }, 1000); // wait 1 second before starting
+});
+
+/* =====================
+   HELPERS
+===================== */
+function updateStageText(){
+  stageEl.textContent = `Stage ${currentStage} of ${maxStages}`;
+}
+
+function generatePattern() {
+  const keys = Object.keys(highlights);
+  pattern = [];
+  for(let i = 0; i < sequenceLength; i++){
+    pattern.push(keys[Math.floor(Math.random() * keys.length)]);
+  }
+}
+
+/* =====================
+   SHOW PATTERN
+===================== */
+async function showPattern() {
+  acceptingInput = false;
+  currentStep = 0;
+  messageEl.textContent = "Watch the pattern...";
+
+  for(let key of pattern){
+    highlights[key].style.opacity = 1;
+    await wait(600);
+    highlights[key].style.opacity = 0;
+    await wait(250);
+  }
+
+  messageEl.textContent = "Your turn...";
+  acceptingInput = true;
+}
+
+function wait(ms){
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/* =====================
+   PLAYER INPUT
+===================== */
+document.querySelectorAll('.simon-button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if(!acceptingInput) return;
+
+    const sound = btn.dataset.sound;
+
+    highlights[sound].style.opacity = 1;
+    setTimeout(()=>highlights[sound].style.opacity=0,300);
+
+    if(sound !== pattern[currentStep]){
+      acceptingInput = false;
+      messageEl.textContent = "The rhythm breaks...";
+
+      setTimeout(() => {
+        generatePattern();
+        showPattern();
+      }, 1200);
+      return;
+    }
+
+    currentStep++;
+
+    if(currentStep === pattern.length){
+      acceptingInput = false;
+
+      if(currentStage < maxStages){
+        currentStage++;
+        sequenceLength += 2;
+        updateStageText();
+
+        messageEl.textContent = "The harmony deepens...";
+
+        setTimeout(() => {
+          generatePattern();
+          showPattern();
+        }, 1400);
+
+      } else {
+        messageEl.textContent = "The harmony is complete.";
+
+        setTimeout(() => {
+          fadeToNextPuzzle();
+        }, 1500);
+      }
+    }
+  });
+});
+
+/* =====================
+   TRANSITION
+===================== */
+function fadeToNextPuzzle(){
+  document.body.style.transition = "opacity 1s ease";
+  document.body.style.opacity = 0;
+
+  setTimeout(()=>{
+    // window.location.href = "puzzle3.html"; // uncomment when ready
+    alert("Next puzzle would load here.");
+  },1000);
+}
+</script>
+</body>
+</html>

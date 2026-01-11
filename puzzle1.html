@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sliding Puzzle</title>
+<style>
+  body {
+    margin:0;
+    font-family: sans-serif;
+    background: url('assets/images/stone_wall.png') no-repeat center center fixed;
+    background-size: cover;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  #puzzle-container {
+    width: 440px; /* 4 tiles x 110px each */
+    height: 440px;
+    display: flex;
+    flex-wrap: wrap;
+    position: relative;
+    transition: opacity 1s ease;
+  }
+
+  #puzzle-wrapper {
+  transition: opacity 1s ease;
+  opacity: 1;
+}
+.fade-out {
+  opacity: 0;
+}
+
+
+  .tile {
+    width: 110px;
+    height: 110px;
+    box-sizing: border-box;
+    border: 1px solid #222;
+    background-image: url('assets/images/puzzle_image.png'); /* your 4x4 puzzle image */
+    background-size: 440px 440px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .tile.empty {
+    background-color: #333; /* dark gray for the empty space */
+    cursor: default;
+  }
+
+  #puzzle.solved {
+    box-shadow: 0 0 20px 5px yellow; /* glow effect when solved */
+    transition: box-shadow 1s ease;
+  }
+</style>
+</head>
+<body>
+    <div id="puzzle-wrapper">
+<div id="puzzle-container"></div>
+
+<script>
+const puzzleContainer = document.getElementById("puzzle-container");
+const size = 4;
+const totalTiles = size * size;
+const blankValue = totalTiles - 1;
+
+let tiles = [];
+for(let i=0; i<totalTiles; i++) tiles.push(i);
+
+// Force bottom-middle as empty
+const bottomMiddleIndex = totalTiles - size + Math.floor(size/2);
+let emptyIndex = bottomMiddleIndex;
+
+tiles = [];
+for(let i=0;i<totalTiles;i++){
+  if(i === emptyIndex){
+    tiles.push(blankValue); // empty
+  } else if(i < blankValue){
+    tiles.push(i); // numbered tiles
+  } else {
+    tiles.push(i-1); // shift numbers after empty
+  }
+}
+
+
+// Swap blank with bottom-middle if necessary
+if(emptyIndex !== blankValue){
+  const idx = tiles.indexOf(blankValue);
+  [tiles[emptyIndex], tiles[idx]] = [tiles[idx], tiles[emptyIndex]];
+}
+
+function getAdjacent(index){
+  const row = Math.floor(index/size);
+  const col = index%size;
+  return [
+    [row-1,col],
+    [row+1,col],
+    [row,col-1],
+    [row,col+1]
+  ].filter(([r,c])=>r>=0 && r<size && c>=0 && c<size).map(([r,c])=>r*size+c);
+}
+
+function scramble(moves=150){
+  for(let i=0;i<moves;i++){
+    // only move numbered tiles adjacent to empty
+    const options = getAdjacent(emptyIndex).filter(idx => tiles[idx] !== blankValue);
+    const move = options[Math.floor(Math.random()*options.length)];
+    [tiles[emptyIndex], tiles[move]] = [tiles[move], tiles[emptyIndex]];
+    emptyIndex = move;
+  }
+}
+
+
+function isSolved(){
+  for(let i=0;i<totalTiles;i++) if(tiles[i]!==i) return false;
+  return true;
+}
+
+function draw(){
+  puzzleContainer.innerHTML="";
+  tiles.forEach((num,index)=>{
+    const tile = document.createElement("div");
+    if(num===blankValue){
+      tile.className="tile empty";
+    } else {
+      tile.className="tile";
+      const x = num%size;
+      const y = Math.floor(num/size);
+      tile.style.backgroundPosition = `-${x*110}px -${y*110}px`;
+      tile.onclick = ()=>tryMove(index);
+    }
+    puzzleContainer.appendChild(tile);
+  });
+}
+
+function tryMove(index){
+  const adj = getAdjacent(emptyIndex);
+  if(adj.includes(index)){
+    [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
+    emptyIndex=index;
+    draw();
+
+    if(isSolved()){
+  puzzleContainer.classList.add("solved");
+
+  // Fade out
+  const wrapper = document.getElementById("puzzle-wrapper");
+  wrapper.classList.add("fade-out");
+
+  // Wait for the fade to finish, then go to puzzle2.html
+  setTimeout(()=> {
+    window.location.href = "puzzle2.html";
+  }, 1000); // matches CSS transition time
+}
+
+  }
+}
+
+scramble();
+draw();
+</script>
+</body>
+</html>
