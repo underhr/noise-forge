@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sliding Puzzle</title>
+
 <style>
   body {
-    margin:0;
+    margin: 0;
     font-family: sans-serif;
     background: url('assets/images/stone_wall.png') no-repeat center center fixed;
     background-size: cover;
@@ -14,152 +15,206 @@
     justify-content: center;
     align-items: center;
     height: 100vh;
-  }
-
-  #puzzle-container {
-    width: 440px; /* 4 tiles x 110px each */
-    height: 440px;
-    display: flex;
-    flex-wrap: wrap;
-    position: relative;
     transition: opacity 1s ease;
   }
 
   #puzzle-wrapper {
-  transition: opacity 1s ease;
-  opacity: 1;
-}
-.fade-out {
-  opacity: 0;
-}
+    transition: opacity 1s ease;
+    opacity: 1;
+  }
 
+  .fade-out {
+    opacity: 0;
+  }
+
+  #puzzle-container {
+    width: 440px;
+    height: 440px;
+    display: flex;
+    flex-wrap: wrap;
+  }
 
   .tile {
     width: 110px;
     height: 110px;
     box-sizing: border-box;
     border: 1px solid #222;
-    background-image: url('assets/images/puzzle_image.png'); /* your 4x4 puzzle image */
+    background-image: url('assets/images/puzzle_image.png');
     background-size: 440px 440px;
     cursor: pointer;
-    transition: all 0.2s ease;
   }
 
   .tile.empty {
-    background-color: #333; /* dark gray for the empty space */
+    background-image: none;
+    background-color: #333;
     cursor: default;
   }
 
-  #puzzle.solved {
-    box-shadow: 0 0 20px 5px yellow; /* glow effect when solved */
-    transition: box-shadow 1s ease;
+  .solved {
+    box-shadow: 0 0 20px 5px yellow;
+  }
+
+  /* 🔊 VOLUME CONTROL */
+  #volume-control {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0,0,0,0.6);
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    z-index: 9999;
+  }
+
+  #volume-slider {
+    vertical-align: middle;
+    margin-left: 8px;
   }
 </style>
 </head>
+
 <body>
-    <div id="puzzle-wrapper">
-<div id="puzzle-container"></div>
+
+<!-- 🔊 Background Audio -->
+<audio id="bg-audio" loop>
+  <source src="assets/audio/bg_ambient.mp3" type="audio/mpeg">
+</audio>
+
+<div id="puzzle-wrapper">
+  <div id="puzzle-container"></div>
+</div>
+
+<!-- 🔊 Volume Slider -->
+<div id="volume-control">
+  🔊
+  <input
+    type="range"
+    id="volume-slider"
+    min="0"
+    max="1"
+    step="0.01"
+  >
+</div>
 
 <script>
+/* =======================
+   🔊 AUDIO CONTINUITY
+======================= */
+const bgAudio = document.getElementById("bg-audio");
+const volumeSlider = document.getElementById("volume-slider");
+
+// Load saved volume
+const savedVolume = localStorage.getItem("bgVolume");
+bgAudio.volume = savedVolume !== null ? savedVolume : 0.4;
+volumeSlider.value = bgAudio.volume;
+
+// Resume playback time
+const savedTime = localStorage.getItem("bgTime");
+if (savedTime) {
+  bgAudio.currentTime = parseFloat(savedTime);
+}
+
+// Start audio immediately (safe fallback)
+bgAudio.play().catch(() => {});
+
+// Save volume changes
+volumeSlider.addEventListener("input", () => {
+  bgAudio.volume = volumeSlider.value;
+  localStorage.setItem("bgVolume", volumeSlider.value);
+});
+
+// Persist playback time
+setInterval(() => {
+  if (!bgAudio.paused) {
+    localStorage.setItem("bgTime", bgAudio.currentTime);
+  }
+}, 500);
+
+
+/* =======================
+   🧩 SLIDING PUZZLE
+======================= */
 const puzzleContainer = document.getElementById("puzzle-container");
 const size = 4;
 const totalTiles = size * size;
 const blankValue = totalTiles - 1;
 
+// Bottom-middle blank
+let emptyIndex = totalTiles - size + Math.floor(size / 2);
+
+// Build tiles
 let tiles = [];
-for(let i=0; i<totalTiles; i++) tiles.push(i);
+for (let i = 0; i < totalTiles; i++) tiles.push(i);
 
-// Force bottom-middle as empty
-const bottomMiddleIndex = totalTiles - size + Math.floor(size/2);
-let emptyIndex = bottomMiddleIndex;
+// Move blank to correct spot
+[tiles[emptyIndex], tiles[blankValue]] = [tiles[blankValue], tiles[emptyIndex]];
 
-tiles = [];
-for(let i=0;i<totalTiles;i++){
-  if(i === emptyIndex){
-    tiles.push(blankValue); // empty
-  } else if(i < blankValue){
-    tiles.push(i); // numbered tiles
-  } else {
-    tiles.push(i-1); // shift numbers after empty
-  }
-}
-
-
-// Swap blank with bottom-middle if necessary
-if(emptyIndex !== blankValue){
-  const idx = tiles.indexOf(blankValue);
-  [tiles[emptyIndex], tiles[idx]] = [tiles[idx], tiles[emptyIndex]];
-}
-
-function getAdjacent(index){
-  const row = Math.floor(index/size);
-  const col = index%size;
+function getAdjacent(index) {
+  const row = Math.floor(index / size);
+  const col = index % size;
   return [
-    [row-1,col],
-    [row+1,col],
-    [row,col-1],
-    [row,col+1]
-  ].filter(([r,c])=>r>=0 && r<size && c>=0 && c<size).map(([r,c])=>r*size+c);
+    [row-1,col],[row+1,col],[row,col-1],[row,col+1]
+  ]
+  .filter(([r,c]) => r >= 0 && r < size && c >= 0 && c < size)
+  .map(([r,c]) => r * size + c);
 }
 
-function scramble(moves=150){
-  for(let i=0;i<moves;i++){
-    // only move numbered tiles adjacent to empty
-    const options = getAdjacent(emptyIndex).filter(idx => tiles[idx] !== blankValue);
-    const move = options[Math.floor(Math.random()*options.length)];
+function scramble(moves = 150) {
+  for (let i = 0; i < moves; i++) {
+    const options = getAdjacent(emptyIndex);
+    const move = options[Math.floor(Math.random() * options.length)];
     [tiles[emptyIndex], tiles[move]] = [tiles[move], tiles[emptyIndex]];
     emptyIndex = move;
   }
 }
 
-
-function isSolved(){
-  for(let i=0;i<totalTiles;i++) if(tiles[i]!==i) return false;
+function isSolved() {
+  for (let i = 0; i < totalTiles; i++) {
+    if (i === emptyIndex) continue;
+    if (tiles[i] !== i) return false;
+  }
   return true;
 }
 
-function draw(){
-  puzzleContainer.innerHTML="";
-  tiles.forEach((num,index)=>{
+function draw() {
+  puzzleContainer.innerHTML = "";
+  tiles.forEach((num, index) => {
     const tile = document.createElement("div");
-    if(num===blankValue){
-      tile.className="tile empty";
+
+    if (num === blankValue) {
+      tile.className = "tile empty";
     } else {
-      tile.className="tile";
-      const x = num%size;
-      const y = Math.floor(num/size);
-      tile.style.backgroundPosition = `-${x*110}px -${y*110}px`;
-      tile.onclick = ()=>tryMove(index);
+      tile.className = "tile";
+      const x = num % size;
+      const y = Math.floor(num / size);
+      tile.style.backgroundPosition = `-${x * 110}px -${y * 110}px`;
+      tile.onclick = () => tryMove(index);
     }
+
     puzzleContainer.appendChild(tile);
   });
 }
 
-function tryMove(index){
-  const adj = getAdjacent(emptyIndex);
-  if(adj.includes(index)){
+function tryMove(index) {
+  if (getAdjacent(emptyIndex).includes(index)) {
     [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
-    emptyIndex=index;
+    emptyIndex = index;
     draw();
 
-    if(isSolved()){
-  puzzleContainer.classList.add("solved");
-
-  // Fade out
-  const wrapper = document.getElementById("puzzle-wrapper");
-  wrapper.classList.add("fade-out");
-
-  // Wait for the fade to finish, then go to puzzle2.html
-  setTimeout(()=> {
-    window.location.href = "puzzle2.html";
-  }, 1000); // matches CSS transition time
-}
-
+    if (isSolved()) {
+      puzzleContainer.classList.add("solved");
+      document.getElementById("puzzle-wrapper").classList.add("fade-out");
+      setTimeout(() => {
+        window.location.href = "puzzle2.html";
+      }, 1000);
+    }
   }
 }
 
 scramble();
 draw();
 </script>
+
 </body>
 </html>

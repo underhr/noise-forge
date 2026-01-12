@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puzzle 4 - Broken Tunnel</title>
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: sans-serif;
+  background: black;
+}
+
+/* === STONE WALL BACKGROUND === */
+#wall-container {
+  position: fixed;
+  inset: 0;
+  background-image: url('assets/images/stone_wall.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 0;
+}
+
+/* === BROKEN TUNNEL OVERLAY === */
+#overlay {
+  position: fixed;
+  inset: 0;
+  background-image: url('assets/images/tunnel_broken.png'); /* Broken tunnel image */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 2s ease;
+}
+
+/* === MESSAGE === */
+#message {
+  position: absolute;
+  bottom: 50px;
+  width: 100%;
+  text-align: center;
+  color: #fff;
+  font-size: 1.5rem;
+  text-shadow: 2px 2px 4px black;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 2s ease;
+}
+</style>
+</head>
+<body>
+
+<div id="wall-container"></div>
+<div id="overlay"></div>
+<div id="message">The tunnels have been revealed.</div>
+
+<script>
+// === ELEMENTS ===
+const overlay = document.getElementById('overlay');
+const message = document.getElementById('message');
+
+// Fade in overlay after a short delay to simulate transition from monster popup
+setTimeout(() => {
+  overlay.style.opacity = 1;
+}, 100);
+
+// Fade in message slightly after overlay
+setTimeout(() => {
+  message.style.opacity = 1;
+}, 800);
+
+// === OPTIONAL AMBIENT HUM CONTINUITY ===
+const ambientHum = new Audio('assets/audio/ambient_hum.mp3');
+ambientHum.loop = true;
+ambientHum.volume = 0.5; // Adjust as needed
+ambientHum.play().catch(() => {
+  document.addEventListener("click", () => ambientHum.play(), { once: true });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trial of Silence</title>
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: sans-serif;
+  background: black;
+}
+
+#fade-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+#fade-wrapper.fade-in { opacity: 1; }
+
+#wall-container {
+  position: fixed;
+  inset: 0;
+  background-image: url('assets/images/stone_wall.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 0;
+}
+
+#crack-layer {
+  position: absolute;
+  inset: 0;
+  background-image: url('assets/images/wall_crack0.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+#intro-text {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #444;
+  font-size: 1.6rem;
+  text-align: center;
+  z-index: 20;
+  opacity: 1;
+  transition: opacity 2s ease;
+}
+
+#ui {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding-bottom: 40px;
+  pointer-events: none;
+}
+
+#buttons-container {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  pointer-events: auto;
+}
+
+.action-button {
+  width: 120px;
+  height: 120px;
+  border: none;
+  background-size: cover;
+  background-color: transparent;
+  cursor: pointer;
+}
+.action-button:active { transform: scale(0.9); }
+
+#message {
+  color: #ccc;
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+  text-align: center;
+  max-width: 80%;
+  min-height: 2.5em;
+}
+
+#timer {
+  color: #fff;
+  font-size: 1.05rem;
+  margin-top: 4px;
+  text-shadow: 2px 2px 4px black;
+}
+
+#monster-popup {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  color: white;
+  z-index: 50;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+#monster-popup button {
+  margin-top: 20px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<div id="fade-wrapper">
+  <div id="wall-container">
+    <div id="crack-layer"></div>
+  </div>
+
+  <div id="intro-text">
+    Sound is forbidden here.<br>
+    Even echoes are watched.
+  </div>
+
+  <div id="ui">
+    <div id="buttons-container">
+      <button class="action-button" data-sound="mic" style="background-image:url('assets/images/mic_button.png')"></button>
+      <button class="action-button" data-sound="guitar" style="background-image:url('assets/images/guitar_button.png')"></button>
+      <button class="action-button" data-sound="drums" style="background-image:url('assets/images/drums_button.png')"></button>
+      <button class="action-button" data-sound="keyboard" style="background-image:url('assets/images/keyboard_button.png')"></button>
+    </div>
+
+    <div id="message"></div>
+    <div id="timer"></div>
+  </div>
+</div>
+
+<div id="monster-popup">
+  <h2>The Shattered Echo Breaks Free</h2>
+  <p>
+    The stone rejects the noise.<br>
+    Silence takes shape.
+  </p>
+  <button id="defeat-monster">Monster Defeated</button>
+</div>
+
+<!-- Audio -->
+<audio id="sound-mic" src="assets/audio/mic.mp3"></audio>
+<audio id="sound-guitar" src="assets/audio/guitar.mp3"></audio>
+<audio id="sound-drums" src="assets/audio/drums.mp3"></audio>
+<audio id="sound-keyboard" src="assets/audio/keyboard.mp3"></audio>
+<audio id="ambient-hum" src="assets/audio/ambient_hum.mp3" loop></audio>
+
+<script>
+const fadeWrapper = document.getElementById("fade-wrapper");
+fadeWrapper.classList.add("fade-in");
+
+const introText = document.getElementById("intro-text");
+const crackLayer = document.getElementById("crack-layer");
+const buttons = document.querySelectorAll(".action-button");
+const timerEl = document.getElementById("timer");
+const messageEl = document.getElementById("message");
+const monsterPopup = document.getElementById("monster-popup");
+const ambientHum = document.getElementById("ambient-hum");
+
+/* === MESSAGES FOR CRACK STAGES === */
+const stageMessages = [
+  "",
+  "A faint crack appears, your noise stirs the cave...",
+  "The wall groans as cracks spread...",
+  "Deeper fissures form, echoes tremble the stone...",
+  "Chips of stone fall to the ground, the cave shivers...",
+  "The walls are dangerously unstable, you feel eyes watching...!"
+];
+
+/* === SOUNDS === */
+const soundMap = {
+  mic: document.getElementById("sound-mic"),
+  guitar: document.getElementById("sound-guitar"),
+  drums: document.getElementById("sound-drums"),
+  keyboard: document.getElementById("sound-keyboard")
+};
+
+/* === CRACK STAGES === */
+const crackImages = [
+  'assets/images/wall_crack0.png',
+  'assets/images/wall_crack1.png',
+  'assets/images/wall_crack2.png',
+  'assets/images/wall_crack3.png',
+  'assets/images/wall_crack4.png',
+  'assets/images/wall_crack5.png',
+  'assets/images/wall_crack6.png'
+];
+const pressesPerCrack = [0, 2, 5, 10, 25, 40, 999];
+const FAILURE_CRACK_INDEX = crackImages.length - 1;
+
+let crackLevel = 0;
+let pressCounter = 0;
+let timerSeconds = 10;
+let failed = false;
+let timer;
+
+/* === WEB AUDIO API FOR LOUD HUM === */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const humSource = audioCtx.createMediaElementSource(ambientHum);
+const gainNode = audioCtx.createGain();
+gainNode.gain.value = 0.3; // starting volume
+humSource.connect(gainNode).connect(audioCtx.destination);
+
+// Start hum immediately
+ambientHum.play().catch(() => {
+  document.addEventListener("click", () => ambientHum.play(), { once: true });
+});
+
+/* === START SEQUENCE === */
+setTimeout(() => {
+  introText.style.opacity = 0;
+  setTimeout(() => {
+    introText.remove();
+    startPuzzle();
+  }, 2000);
+}, 3000);
+
+function startPuzzle() {
+  messageEl.textContent = stageMessages[0];
+  timerEl.textContent = "Time left: 05:00";
+
+  timer = setInterval(() => {
+    timerSeconds--;
+    const min = String(Math.floor(timerSeconds / 60)).padStart(2,'0');
+    const sec = String(timerSeconds % 60).padStart(2,'0');
+    timerEl.textContent = `Time left: ${min}:${sec}`;
+
+    if (timerSeconds <= 0 && !failed) {
+      clearInterval(timer);
+      disableButtons();
+      ambientHum.pause();
+      messageEl.textContent = "The stone accepts your silence.";
+      setTimeout(() => location.href = "puzzle4_clean.html", 2000);
+    }
+  }, 1000);
+}
+
+/* === BUTTON LOGIC === */
+buttons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (failed) return;
+
+    const sound = soundMap[btn.dataset.sound];
+    sound.currentTime = 0;
+    sound.play();
+
+    pressCounter++;
+    if (pressCounter >= pressesPerCrack[crackLevel]) {
+      pressCounter = 0;
+      crackLevel = Math.min(crackLevel + 1, FAILURE_CRACK_INDEX);
+      crackLayer.style.backgroundImage = `url('${crackImages[crackLevel]}')`;
+
+      // Update message on crack stage
+      messageEl.textContent = stageMessages[Math.min(crackLevel, stageMessages.length-1)];
+
+      // Increase hum volume exponentially
+      const baseVolume = 0.3; // starting volume
+      const growthFactor = 2.4; // tweak for more/less aggressive growth
+      gainNode.gain.value = Math.min(baseVolume * Math.pow(growthFactor, crackLevel), 100); // cap at 10
+    }
+
+    if (crackLevel === FAILURE_CRACK_INDEX) {
+      failed = true;
+      clearInterval(timer);
+      disableButtons();
+      ambientHum.pause();
+      monsterPopup.style.display = "flex";
+    }
+  });
+});
+
+function disableButtons() {
+  buttons.forEach(b => b.style.pointerEvents = "none");
+}
+
+/* === MONSTER END === */
+document.getElementById("defeat-monster").onclick = () => {
+  monsterPopup.style.display = "none";
+  setTimeout(() => location.href = "puzzle4_broken.html", 1000);
+};
+</script>

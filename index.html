@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>The Noise Forge</title>
+
   <style>
     html, body {
       margin: 0;
@@ -40,23 +41,97 @@
       text-decoration: none;
       cursor: pointer;
     }
+
+    /* 🔊 Volume Control */
+    #volume-control {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.6);
+      padding: 8px 12px;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      z-index: 9999;
+    }
+
+    #volume-slider {
+      vertical-align: middle;
+      margin-left: 8px;
+    }
   </style>
 </head>
+
 <body>
 
-<div class="overlay">
-  <h1>THE NOISE FORGE</h1>
-  <a id="enter">ENTER</a>
-</div>
+  <!-- 🔊 Background Audio (ONE instance only) -->
+  <audio id="bg-audio" loop>
+    <source src="assets/audio/bg_ambient.mp3" type="audio/mpeg">
+  </audio>
 
-<script>
-  document.getElementById("enter").onclick = () => {
-    document.body.classList.add("fade-out");
-    setTimeout(() => {
-      window.location.href = "puzzle1.html";
-    }, 1000);
-  };
-</script>
+  <!-- 🏔 Overlay -->
+  <div class="overlay">
+    <h1>THE NOISE FORGE</h1>
+    <a id="enter">ENTER</a>
+  </div>
+
+  <!-- 🔊 Volume UI -->
+  <div id="volume-control">
+    🔊
+    <input
+      type="range"
+      id="volume-slider"
+      min="0"
+      max="1"
+      step="0.01"
+    >
+  </div>
+
+  <!-- 🔧 SCRIPT (PLACED AFTER ELEMENTS — IMPORTANT) -->
+  <script>
+    const bgAudio = document.getElementById("bg-audio");
+    const volumeSlider = document.getElementById("volume-slider");
+    const enterButton = document.getElementById("enter");
+
+    /* 🔹 Load saved volume */
+    const savedVolume = localStorage.getItem("bgVolume");
+    bgAudio.volume = savedVolume !== null ? savedVolume : 0.4;
+    volumeSlider.value = bgAudio.volume;
+
+    /* 🔹 Resume playback time */
+    const savedTime = localStorage.getItem("bgTime");
+    if (savedTime) {
+      bgAudio.currentTime = parseFloat(savedTime);
+    }
+
+    /* 🔹 Start audio on first user interaction */
+    function startAudioOnce() {
+      bgAudio.play().catch(() => {});
+      document.removeEventListener("click", startAudioOnce);
+    }
+    document.addEventListener("click", startAudioOnce);
+
+    /* 🔹 Save volume changes */
+    volumeSlider.addEventListener("input", () => {
+      bgAudio.volume = volumeSlider.value;
+      localStorage.setItem("bgVolume", volumeSlider.value);
+    });
+
+    /* 🔹 Continuously save playback position */
+    setInterval(() => {
+      if (!bgAudio.paused) {
+        localStorage.setItem("bgTime", bgAudio.currentTime);
+      }
+    }, 500);
+
+    /* 🔹 Fade-out transition to Puzzle 1 */
+    enterButton.onclick = () => {
+      document.body.classList.add("fade-out");
+      setTimeout(() => {
+        window.location.href = "puzzle1.html";
+      }, 1000);
+    };
+  </script>
 
 </body>
 </html>
